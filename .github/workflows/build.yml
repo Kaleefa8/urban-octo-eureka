@@ -1,12 +1,38 @@
-- name: 'Deploy Container'
-  uses: appleboy/ssh-action@master
-  with:
-    host: [redacted]
-    username: opc
-    key: ${{ secrets.VM_PRIV_KEY }}
-    script: |
-      echo ${{ secrets.OCIR_PASSWORD }} | docker login phx.ocir.io --username [redacted] --password-stdin
-      docker stop project-greenthumb
-      docker rm project-greenthumb
-      docker pull phx.ocir.io/[redacted]/[redacted]/greenthumb-client:latest
-      docker run -d --name project-greenthumb --restart=always --env MICRONAUT_ENVIRONMENTS=oraclecloud --env MQTT_CLIENT_USER_NAME=${{ secrets.MQTT_CLIENT_USER_NAME }} --env DATASOURCES_DEFAULT_USERNAME=${{ secrets.DATASOURCES_DEFAULT_USERNAME }} --env MQTT_CLIENT_PASSWORD=${{ secrets.MQTT_CLIENT_PASSWORD }} --env DATASOURCES_DEFAULT_OCID=${{ secrets.DATASOURCES_DEFAULT_OCID }} --env MQTT_CLIENT_CLIENT_ID=${{ secrets.MQTT_CLIENT_CLIENT_ID }} --env DATASOURCES_DEFAULT_PASSWORD=${{ secrets.DATASOURCES_DEFAULT_PASSWORD }} --env MQTT_CLIENT_SERVER_URI=${{ secrets.MQTT_CLIENT_SERVER_URI }} --env DATASOURCES_DEFAULT_WALLET_PASSWORD=${{ secrets.DATASOURCES_DEFAULT_WALLET_PASSWORD }} -p 8080:8080 -p 80:80 phx.ocir.io/[redacted]/[redacted]/greenthumb-client:latest
+name: Build and Deploy APK
+
+on:
+  push:
+    branches:
+      - main  # Change to your main branch
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.7  # Adjust to your project's Python version
+
+    - name: Install Buildozer dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential ccache git libncurses5:i386 libstdc++6:i386 lib32z1 libbz2-1.0:i386
+
+    - name: Install Buildozer
+      run: pip install buildozer
+
+    - name: Build APK
+      run: buildozer android debug
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v2
+      with:
+        name: my-apk
+        path: bin/  # Adjust this path if needed
+
